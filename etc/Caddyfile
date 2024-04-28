@@ -1,0 +1,4 @@
+checkmein.stage.theforgeinitiative.org {
+    tls
+    reverse_proxy localhost:8447
+}
