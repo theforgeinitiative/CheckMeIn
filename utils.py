@@ -2,7 +2,7 @@ from email.mime.text import MIMEText
 import email.utils
 import smtplib
 
-FROM_EMAIL = "tfi@checkmein.site"
+FROM_EMAIL = "noreply@theforgeinitiative.org"
 FROM_NAME = "TFI CheckMeIn"
 
 
