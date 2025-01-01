@@ -151,7 +151,7 @@ def testData():
         }],
         "unlocks": [{
             "time": timeAgo(hours=1),
-            "location": "BFF",
+            "location": "LOFT",
             "barcode": "100091"
         }],
         "guests": [{

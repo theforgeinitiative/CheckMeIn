@@ -23,9 +23,9 @@ ${self.logo()}<br/>
    <fieldset><legend>Personal</legend>
    <UL>
    % if inBuilding:
-      <LI><A HREF="/station/checkout?barcode=${barcode}">Check out of BFF</A>
+      <LI><A HREF="/station/checkout?barcode=${barcode}">Check out of the LOFT</A>
    % else:
-      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into BFF</A>
+      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into the LOFT</A>
    % endif
    <LI><A HREF="/certifications/user?barcode=${barcode}">My Shop Certifications</A>
    % if role.value != 0:
@@ -37,7 +37,7 @@ ${self.logo()}<br/>
    </fieldset><br/>
    <fieldset><legend>General</legend>
    <UL>
-      <LI><A HREF="/whoishere">See who is at BFF</A>
+      <LI><A HREF="/whoishere">See who is at the LOFT</A>
       <LI><A HREF="https://calendar.google.com/calendar/embed?src=h75eigkfjvngvpff1dq0af74mk%40group.calendar.google.com&ctz=America%2FNew_York">TFI Calendar</A>
       <LI><A HREF="https://app.theforgeinitiative.org/">Forge Member App</A>
    </UL>
@@ -47,8 +47,8 @@ ${self.logo()}<br/>
    <fieldset>
    <legend>Keyholder</legend>
    <UL>
-      <LI><A HREF="http://192.168.1.10">Downstairs Door (Works ONLY when at BFF)</A></LI>
-      <LI><A HREF="http://10.0.0.10">Upstairs Door (Works ONLY when at BFF)</A></LI>
+      <!--<LI><A HREF="http://192.168.1.10">Downstairs Door (Works ONLY when at BFF)</A></LI>-->
+      <!--<LI><A HREF="http://10.0.0.10">Upstairs Door (Works ONLY when at BFF)</A></LI>-->
 
       <LI><A HREF="/station/makeKeyholder?barcode=${barcode}">Make ME Keyholder</A></LI>
       <LI><A HREF="/station/updatePresent">Update who is in building</A></LI>
@@ -88,7 +88,7 @@ ${self.logo()}<br/>
    </fieldset><br/>
    % endif
 % endif
-<fieldset><legend>BFF Stations</legend>
+<fieldset><legend>LOFT Stations</legend>
 <UL>
    <LI><A HREF="/station">Main Station</A></LI>
    <LI><A HREF="/guests">Guest Station</A></LI>
