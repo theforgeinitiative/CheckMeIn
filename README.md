@@ -2,6 +2,7 @@
 a system for checking into and out of a building
 
 # Setup
+Start in the repo. e.g. ```cd .../CheckMeIn``` for wherever you clone the repo.
 You'll need a python venv, set it up like this:
   1. ```python3 -m venv venv```
   2. ```source venv/bin/activate```
@@ -23,13 +24,13 @@ DO NOT push these renamed files to the origin repository.
 Once you are satisfied that you have the dependencies met, and the unit tests are passing, then to run the
 server, you will execute:
 
-```python3 checkmein.py development.conf```
+```python3 checkMeIn.py development.conf```
 
 You can connect to your server using a local browser at "http://localhost:8089"
 Note: 
-* When first starting, assuming you ran the tests, you may choose to
-```mkdir data```
-```cp testData test.db data/checkmein.db```
+* When first starting, assuming you ran the tests, you may choose to     
+```mkdir data```     
+```cp testData/test.db data/checkMeIn.db```    
 This gives you a database with a couple of members and an admin user whose name 
 is 'admin' and password is 'password'. 
 
