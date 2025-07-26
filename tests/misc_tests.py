@@ -29,5 +29,5 @@ class MiscTest(CPtest.CPTest):
 
     def test_unlock(self):
         with self.patch_session():
-            self.getPage("/unlock?location=LOFT&barcode=100091")
+            self.getPage("/unlock?location=TFI&barcode=100091")
         self.assertStatus('303 See Other')
