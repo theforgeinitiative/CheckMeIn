@@ -25,7 +25,7 @@ ${self.logo()}<br/>
    % if inBuilding:
       <LI><A HREF="/station/checkout?barcode=${barcode}">Check out of The Forge</A>
    % else:
-      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into the The Forge</A>
+      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into The Forge</A>
    % endif
    <LI><A HREF="/certifications/user?barcode=${barcode}">My Shop Certifications</A>
    % if role.value != 0:
@@ -37,7 +37,7 @@ ${self.logo()}<br/>
    </fieldset><br/>
    <fieldset><legend>General</legend>
    <UL>
-      <LI><A HREF="/whoishere">See who is at the The Forge</A>
+      <LI><A HREF="/whoishere">See who is at The Forge</A>
       <LI><A HREF="https://calendar.google.com/calendar/embed?src=h75eigkfjvngvpff1dq0af74mk%40group.calendar.google.com&ctz=America%2FNew_York">TFI Calendar</A>
       <LI><A HREF="https://app.theforgeinitiative.org/">Forge Member App</A>
    </UL>
