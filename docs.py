@@ -25,7 +25,7 @@ def getDocumentation():
             returns="Returns a webpage",
             notes=["This shows a list of links that barcode might find useful based off their role",
                    "If barcode is left off, it is a list of links for display stations"]),
-        Doc('Unlock', '/unlock?location=LOFT&barcode=<barcode>',
+        Doc('Unlock', '/unlock?location=Forge&barcode=<barcode>',
             returns="Returns the station webpage",
             notes=["This records the door was unlocked and checks the person that unlocks it in.  For use of door app ONLY"]),
         Doc('Get Keyholder list', '/admin/getKeyholderJSON',

@@ -23,9 +23,9 @@ ${self.logo()}<br/>
    <fieldset><legend>Personal</legend>
    <UL>
    % if inBuilding:
-      <LI><A HREF="/station/checkout?barcode=${barcode}">Check out of the LOFT</A>
+      <LI><A HREF="/station/checkout?barcode=${barcode}">Check out of The Forge</A>
    % else:
-      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into the LOFT</A>
+      <LI><A HREF="/station/checkin?barcode=${barcode}">Check into The Forge</A>
    % endif
    <LI><A HREF="/certifications/user?barcode=${barcode}">My Shop Certifications</A>
    % if role.value != 0:
@@ -37,7 +37,7 @@ ${self.logo()}<br/>
    </fieldset><br/>
    <fieldset><legend>General</legend>
    <UL>
-      <LI><A HREF="/whoishere">See who is at the LOFT</A>
+      <LI><A HREF="/whoishere">See who is at The Forge</A>
       <LI><A HREF="https://calendar.google.com/calendar/embed?src=h75eigkfjvngvpff1dq0af74mk%40group.calendar.google.com&ctz=America%2FNew_York">TFI Calendar</A>
       <LI><A HREF="https://app.theforgeinitiative.org/">Forge Member App</A>
    </UL>
@@ -47,7 +47,7 @@ ${self.logo()}<br/>
    <fieldset>
    <legend>Keyholder</legend>
    <UL>
-      <LI><A HREF="http://192.168.1.10">Suite 205 Door (Works ONLY when at the LOFT)</A></LI>
+      <LI><A HREF="http://192.168.1.10">Suite 205 Door (Works ONLY when at The Forge)</A></LI>
       <LI><A HREF="/station/makeKeyholder?barcode=${barcode}">Make ME Keyholder</A></LI>
       <LI><A HREF="/station/updatePresent">Update who is in building</A></LI>
       <LI><A HREF="/admin/oops">Oops (Didn't meant to close building)</A></LI>
@@ -86,7 +86,7 @@ ${self.logo()}<br/>
    </fieldset><br/>
    % endif
 % endif
-<fieldset><legend>LOFT Stations</legend>
+<fieldset><legend>Forge Stations</legend>
 <UL>
    <LI><A HREF="/station">Main Station</A></LI>
    <LI><A HREF="/guests">Guest Station</A></LI>
