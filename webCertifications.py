@@ -134,7 +134,7 @@ class WebCertifications(WebBase):
     def v2(self, debug=None):
         with self.dbConnect() as dbConnection:
             tools = self.engine.certifications.getAllTools(dbConnection)
-            users = self.engine.certifications.getAllUserList(dbConnection)
+            users = self.engine.certifications.getInBuildingUserList(dbConnection)
         # Load curated images mapping if available
         images_map = {}
         try:
