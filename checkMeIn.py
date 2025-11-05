@@ -3,6 +3,7 @@ import datetime
 from mako.lookup import TemplateLookup
 import cherrypy
 import cherrypy.process.plugins
+import os
 
 import engine
 from webBase import WebBase, Cookie
@@ -24,8 +25,9 @@ class CheckMeIn(WebBase):
         cherrypy.engine.publish(self.updateChannel, fullMessage)
 
     def __init__(self):
+        templates_dir = os.path.join(os.path.dirname(__file__), 'HTMLTemplates')
         self.lookup = TemplateLookup(
-            directories=['HTMLTemplates'], default_filters=['h'])
+            directories=[templates_dir], default_filters=['h'], filesystem_checks=True)
         self.updateChannel = 'updates'
         self.engine = engine.Engine(
             cherrypy.config["database.path"], cherrypy.config["database.name"], self.update)
