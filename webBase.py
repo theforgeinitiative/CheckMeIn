@@ -7,21 +7,35 @@ class Cookie(object):
     def __init__(self, name):
         self.name = name
 
-    def get(self, default=''):
-        result = default
-        result = cherrypy.session.get(self.name)
-        if not result:
-            self.set(default)
-            result = default
+    def _session_exists(self):
+        """Check if a session exists without creating one."""
+        # Check if session cookie exists in request
+        # This prevents session creation for unauthenticated users
+        # If no cookie exists, the user is not logged in, so no session should exist
+        session_cookie_name = cherrypy.config.get('tools.sessions.name', 'session_id')
+        return session_cookie_name in cherrypy.request.cookie
 
-        return result
+    def get(self, default=''):
+        # Only access session if it already exists (user is logged in)
+        if not self._session_exists():
+            return default
+        # Session exists and is loaded, safe to access
+        try:
+            result = cherrypy.session.get(self.name, default)
+            return result if result else default
+        except (AttributeError, KeyError):
+            # Session might have been invalidated, return default
+            return default
 
     def set(self, value):
+        # Setting a value means user is logged in, so creating session is OK
         cherrypy.session[self.name] = value
         return value
 
     def delete(self):
-        cherrypy.session.pop(self.name, None)
+        # Only try to delete if session exists
+        if self._session_exists():
+            cherrypy.session.pop(self.name, None)
 
 
 class WebBase(object):
