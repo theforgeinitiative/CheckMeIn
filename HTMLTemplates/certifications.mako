@@ -1,7 +1,7 @@
 <%def name="scripts()">
 <script>
 // ===== FEATURE FLAGS =====
-const ENABLE_RESOURCE_PAGE = true;  // Set to false to disable resource page
+const ENABLE_RESOURCE_PAGE = false;  // Set to false to disable resource page
 const SCROLL_CYCLES_BEFORE_RESOURCE = 1;  // Show resource page every N full scrolls (1 = every time)
 
 // ===== AUTO-SCROLL CONFIGURATION =====
