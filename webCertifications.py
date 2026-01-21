@@ -6,7 +6,7 @@ import json
 
 class WebCertifications(WebBase):
     # Certifications
-    def showCertifications(self, message, tools, certifications, show_table_header=True, show_left_names=True, show_right_names=True):
+    def showCertifications(self, message, tools, certifications, show_table_header=True, show_left_names=True, show_right_names=False):
         return self.template('certifications.mako',
                              message=message,
                              tools=tools,
