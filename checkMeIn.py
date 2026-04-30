@@ -14,6 +14,7 @@ from webTeams import WebTeams
 from webAdminStation import WebAdminStation
 from webReports import WebReports
 from webProfile import WebProfile
+from webSync import WebSync
 from docs import getDocumentation
 from accounts import Role
 from cherrypy_SSE import Portier
@@ -40,6 +41,7 @@ class CheckMeIn(WebBase):
         self.admin = WebAdminStation(self.lookup, self.engine)
         self.reports = WebReports(self.lookup, self.engine)
         self.profile = WebProfile(self.lookup, self.engine)
+        self.sync = WebSync(self.lookup, self.engine)
 
     @cherrypy.expose
     def index(self):
