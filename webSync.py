@@ -33,20 +33,18 @@ def _upload(table_name, rows, schema):
 def sync_roles(db_connect):
     with db_connect() as db:
         cursor = db.execute(
-            "SELECT barcode, displayName, role & 0x04 AS coach,"
-            "       role & 0x08 AS certifier, role & 0x10 AS keyholder,"
-            "       role & 0x40 AS steward"
+            "SELECT barcode, role & 0x04 AS coach, role & 0x08 AS certifier,"
+            "       role & 0x10 AS keyholder, role & 0x40 AS steward"
             " FROM accounts"
             " WHERE role != 0"
         )
         rows = [
             {
-                "barcode":     row[0],
-                "displayName": row[1],
-                "coach":       bool(row[2]),
-                "certifier":   bool(row[3]),
-                "keyholder":   bool(row[4]),
-                "steward":     bool(row[5]),
+                "barcode":    row[0],
+                "coach":      bool(row[1]),
+                "certifier":  bool(row[2]),
+                "keyholder":  bool(row[3]),
+                "steward":    bool(row[4]),
             }
             for row in cursor.fetchall()
         ]
@@ -54,12 +52,11 @@ def sync_roles(db_connect):
         "roles",
         rows,
         [
-            bigquery.SchemaField("barcode",     "STRING"),
-            bigquery.SchemaField("displayName", "STRING"),
-            bigquery.SchemaField("coach",       "BOOL"),
-            bigquery.SchemaField("certifier",   "BOOL"),
-            bigquery.SchemaField("keyholder",   "BOOL"),
-            bigquery.SchemaField("steward",     "BOOL"),
+            bigquery.SchemaField("barcode",   "STRING"),
+            bigquery.SchemaField("coach",     "BOOL"),
+            bigquery.SchemaField("certifier", "BOOL"),
+            bigquery.SchemaField("keyholder", "BOOL"),
+            bigquery.SchemaField("steward",   "BOOL"),
         ],
     )
 
