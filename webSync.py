@@ -5,6 +5,65 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 
+def _get_bq_client():
+    project = cherrypy.config.get("bigquery.project", "")
+    creds_path = cherrypy.config.get("bigquery.credentials", "")
+    if creds_path:
+        creds = service_account.Credentials.from_service_account_file(
+            creds_path,
+            scopes=["https://www.googleapis.com/auth/bigquery"],
+        )
+        return bigquery.Client(credentials=creds, project=project)
+    return bigquery.Client(project=project)
+
+
+def _upload(table_name, rows, schema):
+    client = _get_bq_client()
+    dataset = cherrypy.config.get("bigquery.dataset", "")
+    table_ref = f"{client.project}.{dataset}.{table_name}"
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        schema=schema,
+    )
+    job = client.load_table_from_json(rows, table_ref, job_config=job_config)
+    job.result()
+    return len(rows)
+
+
+def sync_roles(db_connect):
+    with db_connect() as db:
+        cursor = db.execute(
+            "SELECT barcode, displayName, role & 0x04 AS coach,"
+            "       role & 0x08 AS certifier, role & 0x10 AS keyholder,"
+            "       role & 0x40 AS steward"
+            " FROM accounts"
+            " WHERE role != 0"
+        )
+        rows = [
+            {
+                "barcode":     row[0],
+                "displayName": row[1],
+                "coach":       bool(row[2]),
+                "certifier":   bool(row[3]),
+                "keyholder":   bool(row[4]),
+                "steward":     bool(row[5]),
+            }
+            for row in cursor.fetchall()
+        ]
+    return _upload(
+        "roles",
+        rows,
+        [
+            bigquery.SchemaField("barcode",     "STRING"),
+            bigquery.SchemaField("displayName", "STRING"),
+            bigquery.SchemaField("coach",       "BOOL"),
+            bigquery.SchemaField("certifier",   "BOOL"),
+            bigquery.SchemaField("keyholder",   "BOOL"),
+            bigquery.SchemaField("steward",     "BOOL"),
+        ],
+    )
+
+
 class WebSync(WebBase):
     def _check_auth(self):
         expected = cherrypy.config.get("sync.token", "")
@@ -13,28 +72,8 @@ class WebSync(WebBase):
             cherrypy.response.headers["WWW-Authenticate"] = 'Bearer realm="sync"'
             raise cherrypy.HTTPError(401, "Unauthorized")
 
-    def _get_bq_client(self):
-        project = cherrypy.config.get("bigquery.project", "")
-        creds_path = cherrypy.config.get("bigquery.credentials", "")
-        if creds_path:
-            creds = service_account.Credentials.from_service_account_file(
-                creds_path,
-                scopes=["https://www.googleapis.com/auth/bigquery"],
-            )
-            return bigquery.Client(credentials=creds, project=project)
-        return bigquery.Client(project=project)
-
     def _upload(self, table_name, rows, schema):
-        client = self._get_bq_client()
-        dataset = cherrypy.config.get("bigquery.dataset", "")
-        table_ref = f"{client.project}.{dataset}.{table_name}"
-        job_config = bigquery.LoadJobConfig(
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
-            schema=schema,
-        )
-        job = client.load_table_from_json(rows, table_ref, job_config=job_config)
-        job.result()
-        return len(rows)
+        return _upload(table_name, rows, schema)
 
     def _json_response(self, rows_uploaded):
         cherrypy.response.headers["Content-Type"] = "application/json"
@@ -164,6 +203,7 @@ class WebSync(WebBase):
                     bigquery.SchemaField("level",        "INTEGER"),
                 ],
             ),
+            "roles": sync_roles(self.dbConnect),
         }
         cherrypy.response.headers["Content-Type"] = "application/json"
         return json.dumps({"status": "ok", "rows_uploaded": results}).encode()
