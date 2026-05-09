@@ -94,6 +94,27 @@ class WebSync(WebBase):
                 for row in cursor.fetchall()
             ]
 
+    def _load_roles(self):
+        with self.dbConnect() as db:
+            cursor = db.execute(
+                "SELECT barcode, displayName, role & 0x04 AS coach,"
+                "       role & 0x08 AS certifier, role & 0x10 AS keyholder,"
+                "       role & 0x40 AS steward"
+                " FROM accounts"
+                " WHERE role != 0"
+            )
+            return [
+                {
+                    "barcode":    row[0],
+                    "displayName": row[1],
+                    "coach":      bool(row[2]),
+                    "certifier":  bool(row[3]),
+                    "keyholder":  bool(row[4]),
+                    "steward":    bool(row[5]),
+                }
+                for row in cursor.fetchall()
+            ]
+
     def _load_certifications(self):
         with self.dbConnect() as db:
             cursor = db.execute(
@@ -162,6 +183,18 @@ class WebSync(WebBase):
                     bigquery.SchemaField("certifier_id", "STRING"),
                     bigquery.SchemaField("date",         "TIMESTAMP"),
                     bigquery.SchemaField("level",        "INTEGER"),
+                ],
+            ),
+            "roles": self._upload(
+                "roles",
+                self._load_roles(),
+                [
+                    bigquery.SchemaField("barcode",     "STRING"),
+                    bigquery.SchemaField("displayName", "STRING"),
+                    bigquery.SchemaField("coach",       "BOOL"),
+                    bigquery.SchemaField("certifier",   "BOOL"),
+                    bigquery.SchemaField("keyholder",   "BOOL"),
+                    bigquery.SchemaField("steward",     "BOOL"),
                 ],
             ),
         }
