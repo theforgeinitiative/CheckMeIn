@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import CPtest
 
 
@@ -61,7 +63,7 @@ class AdminTest(CPtest.CPTest):
             self.assertStatus('200 OK')
 
     def test_changeAccess(self):
-        with self.patch_session():
+        with self.patch_session(), patch('webAdminStation.sync_roles'):
             self.getPage(
                 "/admin/changeAccess?barcode=100091&admin=1&keyholder=1")
             self.assertStatus('303 See Other')
@@ -76,8 +78,9 @@ class AdminTest(CPtest.CPTest):
         self.getPage("/admin/emptyBuilding")
 
     def test_addUser(self):
-        with self.patch_session():
+        with self.patch_session(), patch('webAdminStation.sync_roles'):
             self.getPage("/admin/addUser?user=Fred&barcode=100093")
+            self.assertStatus('200 OK')
 
     def test_addUserDuplicate(self):
         with self.patch_session():

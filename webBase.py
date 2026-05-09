@@ -7,14 +7,14 @@ class Cookie(object):
     def __init__(self, name):
         self.name = name
 
-    def get(self, default=''):
-        result = default
-        result = cherrypy.session.get(self.name)
-        if not result:
-            self.set(default)
-            result = default
+    def _session_exists(self):
+        session_name = cherrypy.config.get('tools.sessions.name', 'session_id')
+        return session_name in cherrypy.request.cookie
 
-        return result
+    def get(self, default=''):
+        if not self._session_exists():
+            return default
+        return cherrypy.session.get(self.name, default)
 
     def set(self, value):
         cherrypy.session[self.name] = value

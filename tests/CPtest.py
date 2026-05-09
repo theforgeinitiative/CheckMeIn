@@ -1,3 +1,4 @@
+import contextlib
 from unittest.mock import patch
 
 import cherrypy
@@ -5,6 +6,7 @@ from cherrypy.test import helper
 from cherrypy.lib.sessions import RamSession
 
 from checkMeIn import CheckMeIn
+from webBase import Cookie
 
 
 class CPTest(helper.CPWebCase):
@@ -31,4 +33,7 @@ class CPTest(helper.CPWebCase):
         sess_mock['username'] = username
         sess_mock['barcode'] = barcode
         sess_mock['role'] = role
-        return patch('cherrypy.session', sess_mock, create=True)
+        stack = contextlib.ExitStack()
+        stack.enter_context(patch('cherrypy.session', sess_mock, create=True))
+        stack.enter_context(patch.object(Cookie, '_session_exists', return_value=True))
+        return stack
