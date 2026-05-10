@@ -76,6 +76,16 @@ class WebSync(WebBase):
         cherrypy.response.headers["Content-Type"] = "application/json"
         return json.dumps({"status": "ok", "rows_uploaded": rows_uploaded}).encode()
 
+    @cherrypy.expose
+    def members(self, csvfile=None):
+        self._require_post()
+        self._check_auth()
+        with self.dbConnect() as dbConnection:
+            result = self.engine.members.bulkAdd(dbConnection, csvfile)
+            self.engine.logEvents.addEvent(dbConnection, "Bulk Add", None)
+        cherrypy.response.headers["Content-Type"] = "application/json"
+        return json.dumps({"status": "ok", "message": result}).encode()
+
     def _require_post(self):
         if cherrypy.request.method != "POST":
             raise cherrypy.HTTPError(405, "Method Not Allowed")
