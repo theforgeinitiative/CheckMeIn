@@ -15,7 +15,8 @@ class CPTest(helper.CPWebCase):
         testConfig = {
             'global': {
                 'database.path': 'testData/',
-                'database.name': 'test.db'
+                'database.name': 'test.db',
+                'sync.token': 'testtoken',
             }
         }
 
