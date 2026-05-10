@@ -59,9 +59,20 @@ jobs:
       - name: Deploy to staging
         run: |
           IMAGE_TAG=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}:${{ github.sha }}
-          gcloud compute instances update-container ${{ vars.GCE_INSTANCE }} \
+          gcloud compute ssh ${{ vars.GCE_INSTANCE }} \
             --zone=${{ vars.GCE_ZONE }} \
-            --container-image=$IMAGE_TAG
+            --tunnel-through-iap \
+            --command="
+              docker pull $IMAGE_TAG && \
+              docker stop checkmein || true && \
+              docker rm checkmein || true && \
+              docker run -d --name checkmein \
+                --restart always \
+                -v /mnt/checkmein-data/db:/app/data \
+                -v /mnt/checkmein-data/sessions:/app/sessions \
+                -p 8447:8447 \
+                $IMAGE_TAG
+            "
 
   deploy-prod:
     needs: deploy-staging
@@ -85,6 +96,17 @@ jobs:
       - name: Deploy to production
         run: |
           IMAGE_TAG=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}:${{ github.sha }}
-          gcloud compute instances update-container ${{ vars.GCE_INSTANCE }} \
+          gcloud compute ssh ${{ vars.GCE_INSTANCE }} \
             --zone=${{ vars.GCE_ZONE }} \
-            --container-image=$IMAGE_TAG
+            --tunnel-through-iap \
+            --command="
+              docker pull $IMAGE_TAG && \
+              docker stop checkmein || true && \
+              docker rm checkmein || true && \
+              docker run -d --name checkmein \
+                --restart always \
+                -v /mnt/checkmein-data/db:/app/data \
+                -v /mnt/checkmein-data/sessions:/app/sessions \
+                -p 8447:8447 \
+                $IMAGE_TAG
+            "
