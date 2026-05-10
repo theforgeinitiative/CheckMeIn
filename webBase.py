@@ -11,16 +11,24 @@ class Cookie(object):
         session_name = cherrypy.config.get('tools.sessions.name', 'session_id')
         return session_name in cherrypy.request.cookie
 
+    def _ensure_locked(self):
+        sess = getattr(cherrypy.serving, 'session', None)
+        if sess is not None and not sess.locked:
+            sess.acquire_lock()
+
     def get(self, default=''):
         if not self._session_exists():
             return default
+        self._ensure_locked()
         return cherrypy.session.get(self.name, default)
 
     def set(self, value):
+        self._ensure_locked()
         cherrypy.session[self.name] = value
         return value
 
     def delete(self):
+        self._ensure_locked()
         cherrypy.session.pop(self.name, None)
 
 
