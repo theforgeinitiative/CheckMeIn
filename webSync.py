@@ -1,8 +1,11 @@
 import json
+import zoneinfo
 import cherrypy
 from webBase import WebBase
 from google.cloud import bigquery
 from google.oauth2 import service_account
+
+_SERVER_TZ = zoneinfo.ZoneInfo("America/New_York")
 
 
 def _get_bq_client():
@@ -98,8 +101,8 @@ class WebSync(WebBase):
             return [
                 {
                     "rowid":   row[0],
-                    "start":   row[1].isoformat() if row[1] else None,
-                    "leave":   row[2].isoformat() if row[2] else None,
+                    "start":   row[1].replace(tzinfo=_SERVER_TZ).isoformat() if row[1] else None,
+                    "leave":   row[2].replace(tzinfo=_SERVER_TZ).isoformat() if row[2] else None,
                     "barcode": row[3],
                     "status":  row[4],
                 }
@@ -133,7 +136,7 @@ class WebSync(WebBase):
             )
             return [
                 {
-                    "time":     row[0].isoformat() if row[0] else None,
+                    "time":     row[0].replace(tzinfo=_SERVER_TZ).isoformat() if row[0] else None,
                     "location": row[1],
                     "barcode":  row[2],
                 }
