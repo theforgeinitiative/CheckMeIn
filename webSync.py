@@ -1,11 +1,15 @@
 import json
+import pathlib
 import zoneinfo
 import cherrypy
 from webBase import WebBase
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-_SERVER_TZ = zoneinfo.ZoneInfo("America/New_York")
+try:
+    _SERVER_TZ = zoneinfo.ZoneInfo(pathlib.Path("/etc/timezone").read_text().strip())
+except Exception:
+    _SERVER_TZ = zoneinfo.ZoneInfo("America/New_York")
 
 
 def _get_bq_client():
