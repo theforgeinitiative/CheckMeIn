@@ -231,11 +231,44 @@ class Teams(object):
                                 FROM team_members
                                 INNER JOIN members ON members.barcode=team_members.barcode
                                 WHERE(team_id == ?)
-                                ORDER BY type DESC, displayName ASC''',
+                                ORDER BY CASE type
+                                    WHEN 0 THEN 0
+                                    WHEN 2 THEN 1
+                                    WHEN 1 THEN 2
+                                    ELSE 3 END, displayName COLLATE NOCASE ASC''',
                 (team_id, )):
             listMembers.append(
                 TeamMember(row[0], row[2], row[1], row[3] == 'In'))
         return listMembers
+
+    def groupMembersByType(self, members):
+        """Split members into one (label, members, numPresent) tuple per
+        type, in display order. Empty types are included."""
+        groups = []
+        for memberType, label in ((TeamMemberType.student, "Students"),
+                                  (TeamMemberType.coach, "Coaches"),
+                                  (TeamMemberType.mentor, "Mentors"),
+                                  (TeamMemberType.other, "Other")):
+            inGroup = [m for m in members if m.type == memberType]
+            groups.append(
+                (label, inGroup, sum(1 for m in inGroup if m.present)))
+        return groups
+
+    def getMemberCounts(self, members):
+        """Given a list of TeamMember, return counts of checked-in members
+        by type, plus the total checked in."""
+        counts = {
+            TeamMemberType.student: 0,
+            TeamMemberType.coach: 0,
+            TeamMemberType.mentor: 0,
+            TeamMemberType.other: 0,
+        }
+        total = 0
+        for member in members:
+            if member.present:
+                counts[member.type] += 1
+                total += 1
+        return counts, total
 
     def deactivateTeam(self, dbConnection, team_id):
         dbConnection.execute(
