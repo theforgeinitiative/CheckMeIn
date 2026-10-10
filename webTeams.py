@@ -79,6 +79,8 @@ class WebTeams(WebBase):
                              username=Cookie('username').get(''),
                              todayDate=todayDate, team_name=teamInfo.name,
                              members=members, activeMembers=activeMembers,
+                             memberGroups=self.engine.teams.groupMembersByType(
+                                 members),
                              TeamMemberType=TeamMemberType, error="")
 
     @cherrypy.expose

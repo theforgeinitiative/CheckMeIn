@@ -13,10 +13,14 @@ ${self.logo()}<br/>
 % for team in teams:
    <LI>${team.getProgramId()} - ${team.name}
    <UL>
-   % for member in team.members: 
-     % if member.type >= 0: 
+      <LI><B>Checked in: ${team.totalPresent}</B>
+          (Student: ${team.counts[TeamMemberType.student]},
+           Coach: ${team.counts[TeamMemberType.coach]},
+           Mentor: ${team.counts[TeamMemberType.mentor]},
+           Other: ${team.counts[TeamMemberType.other]})
+      </LI>
+   % for member in team.members:
      <LI>${member.name} ${member.typeString()}</LI>
-     % endif %
    % endfor %
    </UL></LI>
 % endfor 

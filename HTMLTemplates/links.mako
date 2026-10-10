@@ -40,6 +40,7 @@ ${self.logo()}<br/>
       <LI><A HREF="/whoishere">See who is at The Forge</A>
       <LI><A HREF="https://calendar.google.com/calendar/embed?src=h75eigkfjvngvpff1dq0af74mk%40group.calendar.google.com&ctz=America%2FNew_York">TFI Calendar</A>
       <LI><A HREF="https://app.theforgeinitiative.org/">Forge Member App</A>
+      <LI><A HREF="https://lwhipker.github.io/TFI-Close/">Checkout List for Investment Blvd</A>
    </UL>
    </fieldset><br/>
 
