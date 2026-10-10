@@ -1,0 +1,112 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+env:
+  GCP_REGION: us-central1
+  AR_REPO: checkmein
+  IMAGE: checkmein
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}
+          docker build -t $IMAGE_TAG:${{ github.sha }} -t $IMAGE_TAG:latest .
+          docker push $IMAGE_TAG:${{ github.sha }}
+          docker push $IMAGE_TAG:latest
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging  # GCE_INSTANCE and GCE_ZONE set as environment variables in GitHub
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to staging
+        run: |
+          IMAGE_TAG=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}:${{ github.sha }}
+          gcloud compute ssh ${{ vars.GCE_INSTANCE }} \
+            --zone=${{ vars.GCE_ZONE }} \
+            --tunnel-through-iap \
+            --command="
+              docker pull $IMAGE_TAG && \
+              docker stop checkmein || true && \
+              docker rm checkmein || true && \
+              docker run -d --name checkmein \
+                --restart always \
+                -v /mnt/checkmein-data/db:/app/data \
+                -v /mnt/checkmein-data/sessions:/app/sessions \
+                -p 8447:8447 \
+                $IMAGE_TAG
+            "
+
+  deploy-prod:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production  # GCE_INSTANCE and GCE_ZONE set as environment variables in GitHub
+                             # Configure required reviewers in the production environment settings
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to production
+        run: |
+          IMAGE_TAG=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ env.AR_REPO }}/${{ env.IMAGE }}:${{ github.sha }}
+          gcloud compute ssh ${{ vars.GCE_INSTANCE }} \
+            --zone=${{ vars.GCE_ZONE }} \
+            --tunnel-through-iap \
+            --command="
+              docker pull $IMAGE_TAG && \
+              docker stop checkmein || true && \
+              docker rm checkmein || true && \
+              docker run -d --name checkmein \
+                --restart always \
+                -v /mnt/checkmein-data/db:/app/data \
+                -v /mnt/checkmein-data/sessions:/app/sessions \
+                -p 8447:8447 \
+                $IMAGE_TAG
+            "
