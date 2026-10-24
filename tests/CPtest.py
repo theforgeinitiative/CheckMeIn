@@ -17,6 +17,7 @@ class CPTest(helper.CPWebCase):
                 'database.path': 'testData/',
                 'database.name': 'test.db',
                 'sync.token': 'testtoken',
+                'api.token': 'apitoken',
             }
         }
 
