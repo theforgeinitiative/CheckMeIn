@@ -7,7 +7,7 @@ import cherrypy
 
 import CPtest
 
-AUTH = [('Authorization', 'Bearer apitoken')]
+AUTH = [('Authorization', 'Bearer testtoken')]  # the sync token
 
 
 def _db():
@@ -71,18 +71,14 @@ class VisitsApiTest(CPtest.CPTest):
     def test_unknown_barcode_is_empty(self):
         self.assertEqual(self.visits('?barcode=999999')['visits'], [])
 
-    def test_requires_the_api_token(self):
+    def test_requires_the_sync_token(self):
         self.visits('?barcode=100091', headers=[])
         self.assertStatus('401 Unauthorized')
         self.visits('?barcode=100091', headers=[('Authorization', 'Bearer nope')])
         self.assertStatus('401 Unauthorized')
 
-    def test_sync_token_is_not_accepted(self):
-        self.visits('?barcode=100091', headers=[('Authorization', 'Bearer testtoken')])
-        self.assertStatus('401 Unauthorized')
-
     def test_refuses_everything_when_no_token_is_configured(self):
-        with patch.dict(cherrypy.config, {'api.token': ''}):
+        with patch.dict(cherrypy.config, {'sync.token': ''}):
             self.visits('?barcode=100091', headers=[('Authorization', 'Bearer ')])
         self.assertStatus('401 Unauthorized')
 

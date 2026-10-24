@@ -1,7 +1,7 @@
 """Read-only JSON API for other TFI systems (e.g. the member portal).
 
-Authenticated with its own bearer token (`api.token`), separate from the
-sync token. With no token configured every request is refused.
+Authenticated with the same bearer token as /sync (`sync.token`). With no
+token configured every request is refused.
 """
 import datetime
 import hmac
@@ -24,7 +24,7 @@ MAX_DAYS = 366
 
 class WebApi(WebBase):
     def _check_auth(self):
-        expected = cherrypy.config.get("api.token", "")
+        expected = cherrypy.config.get("sync.token", "")
         auth_header = cherrypy.request.headers.get("Authorization", "")
         supplied = auth_header[7:] if auth_header.startswith("Bearer ") else ""
         if not expected or not hmac.compare_digest(supplied, expected):
