@@ -56,7 +56,7 @@ class WebApi(WebBase):
 
         with self.dbConnect() as db:
             rows = db.execute(
-                "SELECT start, leave, status FROM visits"
+                "SELECT rowid, start, leave, status FROM visits"
                 " WHERE barcode == ? AND start >= ? AND status != 'In'"
                 " ORDER BY start DESC",
                 (barcode, since_start),
@@ -64,6 +64,9 @@ class WebApi(WebBase):
 
         visits = [
             {
+                # Stable across Fix Data edits, which rewrite start (and so
+                # visitKey); Fix Data and /sync already rely on rowid too.
+                "id": rowid,
                 # Same key format the volunteer pilot used ("barcode|start"),
                 # so review decisions made there still line up.
                 "visitKey": f"{barcode}|{start}",
@@ -72,7 +75,7 @@ class WebApi(WebBase):
                 "minutes": int((leave - start).total_seconds() // 60),
                 "status": status,
             }
-            for start, leave, status in rows
+            for rowid, start, leave, status in rows
         ]
         cherrypy.response.headers["Content-Type"] = "application/json"
         return json.dumps({"visits": visits}).encode()

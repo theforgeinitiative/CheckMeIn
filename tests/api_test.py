@@ -2,6 +2,7 @@ import datetime
 import json
 import sqlite3
 from unittest.mock import patch
+from urllib.parse import quote
 
 import cherrypy
 
@@ -67,6 +68,33 @@ class VisitsApiTest(CPtest.CPTest):
         finally:
             with _db() as db:
                 db.execute("DELETE FROM visits WHERE barcode = '199998'")
+
+    def test_each_visit_has_an_integer_id(self):
+        visits = self.visits('?barcode=100091')['visits']
+        self.assertTrue(visits)
+        self.assertTrue(all(isinstance(v['id'], int) for v in visits))
+
+    def test_id_survives_a_fix_data_edit(self):
+        # Fix Data rewrites start to the whole minute, which changes
+        # visitKey; the id must stay the same so review decisions stick.
+        start = (datetime.datetime.now() - datetime.timedelta(days=3)).replace(
+            hour=14, minute=25, second=7, microsecond=123456)
+        with _db() as db:
+            db.execute("INSERT INTO visits VALUES (?,?,'199997','Forgot')",
+                       (start, start + datetime.timedelta(hours=9)))
+        try:
+            [before] = self.visits('?barcode=199997')['visits']
+            day = start.date().isoformat()
+            output = quote(f"{before['id']}!{day} 2:25PM!{day} 3:25PM,")
+            with self.patch_session():
+                self.getPage(f'/admin/fixed?output={output}')
+            [after] = self.visits('?barcode=199997')['visits']
+            self.assertEqual(after['id'], before['id'])
+            self.assertNotEqual(after['visitKey'], before['visitKey'])
+            self.assertEqual(after['minutes'], 60)
+        finally:
+            with _db() as db:
+                db.execute("DELETE FROM visits WHERE barcode = '199997'")
 
     def test_unknown_barcode_is_empty(self):
         self.assertEqual(self.visits('?barcode=999999')['visits'], [])
