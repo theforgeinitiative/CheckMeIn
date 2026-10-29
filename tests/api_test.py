@@ -124,3 +124,138 @@ class VisitsApiTest(CPtest.CPTest):
     def test_is_read_only(self):
         self.visits('?barcode=100091', method='POST')
         self.assertStatus('405 Method Not Allowed')
+
+
+class PresenceApiTest(CPtest.CPTest):
+    interactive = False
+    # Barcodes no other test uses; each test adds and removes its own member.
+    MEMBER = '199996'
+    KEYHOLDER = '199995'
+
+    def setUp(self):
+        with _db() as db:
+            for bc in (self.MEMBER, self.KEYHOLDER):
+                db.execute("INSERT INTO members (barcode, displayName) VALUES (?, ?)",
+                           (bc, f'API Test {bc}'))
+
+    def tearDown(self):
+        with _db() as db:
+            for bc in (self.MEMBER, self.KEYHOLDER):
+                db.execute("DELETE FROM visits WHERE barcode = ?", (bc,))
+                db.execute("DELETE FROM members WHERE barcode = ?", (bc,))
+                db.execute("DELETE FROM accounts WHERE barcode = ?", (bc,))
+
+    def call(self, path, barcode, method='POST', headers=AUTH):
+        if method == 'GET':
+            self.getPage(f'{path}?barcode={barcode}', headers, 'GET')
+        else:
+            body = f'barcode={barcode}'
+            self.getPage(path, headers + [
+                ('Content-Type', 'application/x-www-form-urlencoded'),
+                ('Content-Length', str(len(body)))], method, body)
+        return json.loads(self.body) if self.status.startswith('200') else None
+
+    def open_visits(self, barcode):
+        with _db() as db:
+            return db.execute("SELECT COUNT(*) FROM visits WHERE barcode = ? AND status = 'In'",
+                              (barcode,)).fetchone()[0]
+
+    def test_presence_starts_out(self):
+        self.assertEqual(self.call('/api/presence', self.MEMBER, 'GET'), {'in': False})
+
+    def test_check_in_then_out_records_one_visit(self):
+        checked_in = self.call('/api/checkin', self.MEMBER)
+        self.assertTrue(checked_in['in'])
+        self.assertIsNotNone(datetime.datetime.fromisoformat(checked_in['since']).tzinfo)
+        self.assertEqual(self.call('/api/presence', self.MEMBER, 'GET'), checked_in)
+
+        checked_out = self.call('/api/checkout', self.MEMBER)
+        self.assertFalse(checked_out['in'])
+        visit = checked_out['visit']
+        self.assertEqual(visit['status'], 'Out')
+        self.assertEqual(visit['start'], checked_in['since'])
+        [listed] = self.visits_for(self.MEMBER)
+        self.assertEqual(listed, visit)
+
+    def visits_for(self, barcode):
+        self.getPage(f'/api/visits?barcode={barcode}', AUTH)
+        return json.loads(self.body)['visits']
+
+    def test_checking_in_twice_keeps_one_open_visit(self):
+        first = self.call('/api/checkin', self.MEMBER)
+        second = self.call('/api/checkin', self.MEMBER)
+        self.assertEqual(first, second)
+        self.assertEqual(self.open_visits(self.MEMBER), 1)
+
+    def test_checking_out_when_not_in_changes_nothing(self):
+        self.assertEqual(self.call('/api/checkout', self.MEMBER), {'in': False})
+        self.assertEqual(self.visits_for(self.MEMBER), [])
+
+    def test_unknown_barcode_is_not_found(self):
+        for path, method in (('/api/presence', 'GET'), ('/api/checkin', 'POST'),
+                             ('/api/checkout', 'POST')):
+            self.call(path, '999999', method)
+            self.assertStatus('404 Not Found')
+        self.assertEqual(self.open_visits('999999'), 0)
+
+    def test_check_in_never_makes_anyone_keyholder(self):
+        with _db() as db:
+            db.execute("INSERT INTO accounts (user, barcode, role) VALUES ('apitestkh', ?, 16)",
+                       (self.KEYHOLDER,))
+            active = [r[0] for r in db.execute(
+                "SELECT barcode FROM accounts WHERE activeKeyholder = 1")]
+            db.execute("UPDATE accounts SET activeKeyholder = 0")
+        try:
+            self.call('/api/checkin', self.KEYHOLDER)
+            with _db() as db:
+                self.assertEqual(db.execute(
+                    "SELECT COUNT(*) FROM accounts WHERE activeKeyholder = 1").fetchone()[0], 0)
+        finally:
+            with _db() as db:
+                for bc in active:
+                    db.execute("UPDATE accounts SET activeKeyholder = 1 WHERE barcode = ?", (bc,))
+
+    def test_active_keyholder_cannot_check_out(self):
+        with _db() as db:
+            db.execute("INSERT INTO accounts (user, barcode, role) VALUES ('apitestkh', ?, 16)",
+                       (self.KEYHOLDER,))
+            active = [r[0] for r in db.execute(
+                "SELECT barcode FROM accounts WHERE activeKeyholder = 1")]
+            db.execute("UPDATE accounts SET activeKeyholder = 0")
+            db.execute("UPDATE accounts SET activeKeyholder = 1 WHERE barcode = ?",
+                       (self.KEYHOLDER,))
+        try:
+            self.call('/api/checkin', self.KEYHOLDER)
+            self.call('/api/checkin', self.MEMBER)
+            self.call('/api/checkout', self.KEYHOLDER)
+            self.assertStatus('409 Conflict')
+            self.assertInBody('Keyholders check out at the station')
+            # Nobody was closed out.
+            self.assertEqual(self.open_visits(self.KEYHOLDER), 1)
+            self.assertEqual(self.open_visits(self.MEMBER), 1)
+        finally:
+            with _db() as db:
+                db.execute("UPDATE accounts SET activeKeyholder = 0")
+                for bc in active:
+                    db.execute("UPDATE accounts SET activeKeyholder = 1 WHERE barcode = ?", (bc,))
+
+    def test_requires_the_sync_token(self):
+        for path, method in (('/api/presence', 'GET'), ('/api/checkin', 'POST'),
+                             ('/api/checkout', 'POST')):
+            self.call(path, self.MEMBER, method, headers=[])
+            self.assertStatus('401 Unauthorized')
+        self.assertEqual(self.open_visits(self.MEMBER), 0)
+
+    def test_writes_must_be_posts(self):
+        for path in ('/api/checkin', '/api/checkout'):
+            self.call(path, self.MEMBER, 'GET')
+            self.assertStatus('405 Method Not Allowed')
+        self.assertEqual(self.open_visits(self.MEMBER), 0)
+        self.call('/api/presence', self.MEMBER, 'POST')
+        self.assertStatus('405 Method Not Allowed')
+
+    def test_requires_a_barcode(self):
+        for path, method in (('/api/presence', 'GET'), ('/api/checkin', 'POST'),
+                             ('/api/checkout', 'POST')):
+            self.call(path, '', method)
+            self.assertStatus('400 Bad Request')
