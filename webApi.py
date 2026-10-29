@@ -1,7 +1,8 @@
-"""Read-only JSON API for other TFI systems (e.g. the member portal).
+"""JSON API for other TFI systems (e.g. the member portal).
 
 Authenticated with the same bearer token as /sync (`sync.token`). With no
-token configured every request is refused.
+token configured every request is refused. Callers decide which members
+they may act for; this API trusts the barcode it is given.
 """
 import datetime
 import hmac
@@ -36,9 +37,7 @@ class WebApi(WebBase):
         """Completed visits (checked out, or closed by "Forgot") for one
         member, newest first. In-progress visits are left out until the
         member checks out."""
-        if cherrypy.request.method != "GET":
-            raise cherrypy.HTTPError(405, "Method Not Allowed")
-        self._check_auth()
+        self._require_method("GET")
         if not barcode:
             raise cherrypy.HTTPError(400, "barcode is required")
 
@@ -62,20 +61,92 @@ class WebApi(WebBase):
                 (barcode, since_start),
             ).fetchall()
 
-        visits = [
-            {
-                # Stable across Fix Data edits, which rewrite start (and so
-                # visitKey); Fix Data and /sync already rely on rowid too.
-                "id": rowid,
-                # Same key format the volunteer pilot used ("barcode|start"),
-                # so review decisions made there still line up.
-                "visitKey": f"{barcode}|{start}",
-                "start": start.replace(tzinfo=_SERVER_TZ).isoformat(),
-                "leave": leave.replace(tzinfo=_SERVER_TZ).isoformat(),
-                "minutes": int((leave - start).total_seconds() // 60),
-                "status": status,
-            }
-            for rowid, start, leave, status in rows
-        ]
-        cherrypy.response.headers["Content-Type"] = "application/json"
-        return json.dumps({"visits": visits}).encode()
+        return _json({"visits": [_visit_json(barcode, *row) for row in rows]})
+
+    @cherrypy.expose
+    def presence(self, barcode=None):
+        """Whether a member is checked in right now, and since when."""
+        self._require_method("GET")
+        with self.dbConnect() as db:
+            self._require_member(db, barcode)
+            return _json(_presence(db, barcode))
+
+    @cherrypy.expose
+    def checkin(self, barcode=None):
+        """Check a member in, like the station does, except that it never
+        makes anyone the active keyholder. Checking in twice is harmless."""
+        self._require_method("POST")
+        with self.dbConnect() as db:
+            self._require_member(db, barcode)
+            self.engine.visits.checkInMember(db, barcode)
+            return _json(_presence(db, barcode))
+
+    @cherrypy.expose
+    def checkout(self, barcode=None):
+        """Check a member out. The active keyholder is refused: their
+        checkout closes the building, which belongs at the station."""
+        self._require_method("POST")
+        with self.dbConnect() as db:
+            self._require_member(db, barcode)
+            (keyholder_bc, _) = self.engine.accounts.getActiveKeyholder(db)
+            if barcode == keyholder_bc:
+                raise cherrypy.HTTPError(
+                    409, "Keyholders check out at the station")
+            row = db.execute(
+                "SELECT rowid FROM visits WHERE barcode == ? AND status == 'In'",
+                (barcode,),
+            ).fetchone()
+            if row is None:
+                return _json({"in": False})
+            self.engine.visits.checkOutMember(db, barcode)
+            visit = db.execute(
+                "SELECT rowid, start, leave, status FROM visits WHERE rowid == ?",
+                (row[0],),
+            ).fetchone()
+            return _json({"in": False, "visit": _visit_json(barcode, *visit)})
+
+    def _require_method(self, method):
+        if cherrypy.request.method != method:
+            raise cherrypy.HTTPError(405, "Method Not Allowed")
+        self._check_auth()
+
+    def _require_member(self, db, barcode):
+        if not barcode:
+            raise cherrypy.HTTPError(400, "barcode is required")
+        known = db.execute(
+            "SELECT 1 FROM members WHERE barcode == ?", (barcode,)
+        ).fetchone()
+        if known is None:
+            raise cherrypy.HTTPError(404, "Unknown barcode")
+
+
+def _local(timestamp):
+    return timestamp.replace(tzinfo=_SERVER_TZ).isoformat()
+
+
+def _visit_json(barcode, rowid, start, leave, status):
+    return {
+        # Stable across Fix Data edits, which rewrite start (and so
+        # visitKey); Fix Data and /sync already rely on rowid too.
+        "id": rowid,
+        # Same key format the volunteer pilot used ("barcode|start"),
+        # so review decisions made there still line up.
+        "visitKey": f"{barcode}|{start}",
+        "start": _local(start),
+        "leave": _local(leave),
+        "minutes": int((leave - start).total_seconds() // 60),
+        "status": status,
+    }
+
+
+def _presence(db, barcode):
+    row = db.execute(
+        "SELECT start FROM visits WHERE barcode == ? AND status == 'In'",
+        (barcode,),
+    ).fetchone()
+    return {"in": True, "since": _local(row[0])} if row else {"in": False}
+
+
+def _json(data):
+    cherrypy.response.headers["Content-Type"] = "application/json"
+    return json.dumps(data).encode()
