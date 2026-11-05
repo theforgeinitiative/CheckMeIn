@@ -6,7 +6,7 @@ Start in the repo. e.g. ```cd .../CheckMeIn``` for wherever you clone the repo.
 You'll need a python venv, set it up like this:
   1. ```python3 -m venv venv```
   2. ```source venv/bin/activate```
-  3. ```pip install -r requirements.txt```
+  3. ```pip install -r requirements-dev.txt``` (`requirements.txt` alone is what production installs)
   4. ```mkdir testData```
   5. ```echo "l1n5Be5G9GHFXTSMi6tb0O6o5AKmTC68OjF2UmaU55A=" > testData/checkmein.key```
   6. ```mkdir sessions```
@@ -40,6 +40,22 @@ and populates the database to make playing with capabilities easier. (not hard t
 Along these lines , it is handy to
 ```sudo apt install sqlitebrowswer```
 because one can view the database contents using this tool.
+
+## Deploying to Railway
+The repo includes a `Dockerfile`, `railway.toml` and `container.conf` (the CherryPy config the image runs with) for running on Railway.
+
+1. Create a service from this repo and attach a volume mounted at `/data`. The SQLite database,
+   `checkmein.key` and web sessions all live there, so without it every deploy wipes the data.
+   Keep the service at one replica: SQLite, live updates and file sessions assume a single process.
+2. Set these variables on the service:
+   * `SYNC_TOKEN` - bearer token for the `/sync` and `/api` endpoints
+   * `RESEND_API_KEY` - sends email through Resend (without it, email goes to a local SMTP server)
+   * `BIGQUERY_PROJECT` and `BIGQUERY_CREDENTIALS_JSON` (the service account JSON itself) - only needed for the BigQuery sync
+
+   `PORT` is set by Railway. `TZ` defaults to `America/New_York` in the image and must match the
+   timezone of any existing data, since visit times are stored as local time.
+3. To move an existing install, stop the old server, copy its `checkMeIn.db` and `checkmein.key`
+   into `/data` on the volume, and redeploy.
 
 ## Temporary notes for trouble shooting
 * On recent releases of Raspberry Pi OS, it may be necessary to

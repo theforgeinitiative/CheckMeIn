@@ -15,6 +15,13 @@ except Exception:
 def _get_bq_client():
     project = cherrypy.config.get("bigquery.project", "")
     creds_path = cherrypy.config.get("bigquery.credentials", "")
+    creds_json = cherrypy.config.get("bigquery.credentials_json", "")
+    if creds_json:
+        creds = service_account.Credentials.from_service_account_info(
+            json.loads(creds_json),
+            scopes=["https://www.googleapis.com/auth/bigquery"],
+        )
+        return bigquery.Client(credentials=creds, project=project)
     if creds_path:
         creds = service_account.Credentials.from_service_account_file(
             creds_path,
