@@ -57,6 +57,12 @@ The repo includes a `Dockerfile`, `railway.toml` and `container.conf` (the Cherr
 3. To move an existing install, stop the old server, copy its `checkMeIn.db` and `checkmein.key`
    into `/data` on the volume, and redeploy.
 
+### Staging
+The staging environment deploys from the `staging` branch. To try out a pull request there, comment
+`/staging` on it: a GitHub Action resets `staging` to the PR's latest commit and Railway redeploys.
+Run it again after pushing new commits. Only one PR is on staging at a time, so the latest `/staging`
+wins. Set the repository variable `STAGING_URL` to have the link included in the bot's reply.
+
 ## Temporary notes for trouble shooting
 * On recent releases of Raspberry Pi OS, it may be necessary to
 ```sudo apt install libatlas-base-dev```
