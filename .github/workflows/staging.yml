@@ -1,0 +1,61 @@
+# Comment "/staging" on a pull request to deploy it to the staging environment.
+# Railway's staging environment deploys from the `staging` branch, so this
+# resets that branch to the PR's head commit. Only people with write access to
+# the repo can trigger it.
+name: Deploy PR to staging
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: staging-deploy
+
+jobs:
+  deploy:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/staging') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.issue.number }}
+      STAGING_URL: ${{ vars.STAGING_URL }}
+    steps:
+      - name: Acknowledge
+        run: |
+          gh api "repos/$REPO/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content=rocket --silent
+
+      - name: Point staging at the PR
+        id: push
+        run: |
+          sha=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if gh api "repos/$REPO/git/ref/heads/staging" --silent 2>/dev/null; then
+            gh api -X PATCH "repos/$REPO/git/refs/heads/staging" \
+              -f sha="$sha" -F force=true --silent
+          else
+            gh api -X POST "repos/$REPO/git/refs" \
+              -f ref=refs/heads/staging -f sha="$sha" --silent
+          fi
+
+      - name: Report success
+        run: |
+          msg="Deployed \`${{ steps.push.outputs.sha }}\` to staging. Railway will build it in a few minutes."
+          if [ -n "$STAGING_URL" ]; then msg="$msg $STAGING_URL"; fi
+          gh pr comment "$PR" --repo "$REPO" --body "$msg"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          gh pr comment "$PR" --repo "$REPO" --body "Couldn't deploy this PR to staging. \
+          See the [workflow run]($GITHUB_SERVER_URL/$REPO/actions/runs/$GITHUB_RUN_ID). \
+          If this PR changes files in \`.github/workflows\`, GitHub won't let the workflow \
+          move \`staging\` to it; push it by hand with \`git push origin <sha>:staging --force\`."
