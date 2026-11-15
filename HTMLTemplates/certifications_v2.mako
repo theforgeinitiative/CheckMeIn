@@ -86,6 +86,7 @@ function startPagination(){
 }
 
 window.addEventListener('load', startPagination);
+registerKioskServiceWorker();
 
 // Live clock in header (right side)
 function updateClock(){

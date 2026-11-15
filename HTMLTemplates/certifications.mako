@@ -371,6 +371,7 @@ window.addEventListener('load', () => {
 
 <%def name="head()">
 <meta http-equiv="refresh" content="60">
+<script>registerKioskServiceWorker();</script>
 </%def>
 
 <%def name="title()">Certifications</%def>

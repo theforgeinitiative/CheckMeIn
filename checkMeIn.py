@@ -3,6 +3,7 @@ import datetime
 from mako.lookup import TemplateLookup
 import cherrypy
 import cherrypy.process.plugins
+import cherrypy.lib.static
 import os
 
 import engine
@@ -48,6 +49,16 @@ class CheckMeIn(WebBase):
     @cherrypy.expose
     def index(self):
         return self.links()
+
+    @cherrypy.expose
+    def sw_js(self):
+        """Serves /sw.js (the dispatcher maps '.' to '_'). A service worker
+        only controls pages under its own path, so it must be served from the
+        root rather than /static to cover /station, /guests, etc."""
+        cherrypy.response.headers['Cache-Control'] = 'no-cache'
+        return cherrypy.lib.static.serve_file(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'sw.js'),
+            content_type='text/javascript')
 
     @cherrypy.expose
     def test(self, str):

@@ -1,6 +1,7 @@
 <%def name="scripts()">
 <script>
 window.onload = setTimeout(function(){location.href="/station"},1000*60);  // every minute
+registerKioskServiceWorker();
 
 /*
 document.addEventListener('DOMContentLoaded', function () {
