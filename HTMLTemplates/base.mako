@@ -4,6 +4,17 @@
 ## base.mako
 <!DOCTYPE html>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script>
+// Kiosk pages call this so the service worker (static/sw.js, served at /sw.js)
+// can keep them working through brief server or network outages.
+function registerKioskServiceWorker() {
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker.register('/sw.js').catch(function (err) {
+			console.warn('CheckMeIn: service worker registration failed', err);
+		});
+	}
+}
+</script>
 ${self.scripts()}
 <script>
 function pythonDatetimeToHTML(datetime){

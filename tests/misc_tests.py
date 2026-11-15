@@ -12,6 +12,13 @@ class MiscTest(CPtest.CPTest):
             self.getPage("/")
         self.assertStatus('200 OK')
 
+    def test_service_worker_served_from_root(self):
+        self.getPage("/sw.js")
+        self.assertStatus('200 OK')
+        self.assertHeaderIn('Content-Type', ['text/javascript;charset=utf-8'])
+        self.assertHeader('Cache-Control', 'no-cache')
+        self.assertInBody("addEventListener('fetch'")
+
     def test_links(self):
         with self.patch_session():
             self.getPage("/links")
