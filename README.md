@@ -3,7 +3,7 @@ a system for checking into and out of a building
 
 # Setup
 Start in the repo. e.g. ```cd .../CheckMeIn``` for wherever you clone the repo.
-You'll need a python venv, set it up like this:
+You'll need a Python 3.13 venv, set it up like this:
   1. ```python3 -m venv venv```
   2. ```source venv/bin/activate```
   3. ```pip install -r requirements-dev.txt``` (`requirements.txt` alone is what production installs)

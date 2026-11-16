@@ -138,11 +138,11 @@ class Statistics(object):
         values = []
         fig = plt.figure()
         for point in self.getBuildingUsage():
-            dates.append(matplotlib.dates.date2num(point.startTime))
+            dates.append(point.startTime)
             values.append(point.numVisitors)
 
         fig, ax = plt.subplots()
-        plt.plot_date(x=dates, y=values, fmt="r-")
+        ax.plot(dates, values, "r-")
         title_text = "Building usage\n" + \
             self.beginDate.strftime("%b %e, %G")
         if self.beginDate != self.endDate:
