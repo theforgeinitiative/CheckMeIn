@@ -6,7 +6,7 @@ import sqlite3
 import json
 from accounts import Accounts, Role
 from webBase import WebBase, Cookie
-from webSync import sync_roles
+from webSync import try_sync_roles
 from cryptography.fernet import Fernet
 from teams import TeamMemberType
 
@@ -170,7 +170,7 @@ class WebAdminStation(WebBase):
             except sqlite3.IntegrityError:
                 error = "Username already in use"
         if not error:
-            sync_roles(self.dbConnect)
+            try_sync_roles(self.dbConnect)
         return self.users(error)
 
     @cherrypy.expose
@@ -222,7 +222,7 @@ class WebAdminStation(WebBase):
 
         with self.dbConnect() as dbConnection:
             self.engine.accounts.changeRole(dbConnection, barcode, newRole)
-        sync_roles(self.dbConnect)
+        try_sync_roles(self.dbConnect)
         raise cherrypy.HTTPRedirect("/admin/users")
 
     @cherrypy.expose

@@ -32,7 +32,7 @@ import cherrypy
 
 from accounts import Role
 from webBase import WebBase
-from webSync import sync_roles
+from webSync import try_sync_roles
 
 try:
     _SERVER_TZ = zoneinfo.ZoneInfo(pathlib.Path("/etc/timezone").read_text().strip())
@@ -168,12 +168,9 @@ class WebApi(WebBase):
                 self.engine.accounts.changeRole(db, barcode, Role(new_value))
 
         if changed:
-            # Same as the admin page; the role change itself is already
-            # committed, so a BigQuery hiccup shouldn't fail the request.
-            try:
-                sync_roles(self.dbConnect)
-            except Exception as e:
-                cherrypy.log(f"roles sync to BigQuery failed: {e}")
+            # The role change is already committed, so a BigQuery hiccup
+            # shouldn't fail the request.
+            try_sync_roles(self.dbConnect)
 
         return {
             "barcode": barcode,

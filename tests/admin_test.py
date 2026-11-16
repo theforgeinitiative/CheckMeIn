@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import cherrypy
+
 import CPtest
 
 
@@ -63,10 +65,19 @@ class AdminTest(CPtest.CPTest):
             self.assertStatus('200 OK')
 
     def test_changeAccess(self):
-        with self.patch_session(), patch('webAdminStation.sync_roles'):
+        with self.patch_session():
             self.getPage(
                 "/admin/changeAccess?barcode=100091&admin=1&keyholder=1")
             self.assertStatus('303 See Other')
+
+    def test_changeAccessSurvivesBigQueryFailure(self):
+        with self.patch_session(), \
+                patch.dict(cherrypy.config, {'bigquery.project': 'tfi-data'}), \
+                patch('webSync.sync_roles', side_effect=RuntimeError('BigQuery down')) as sync:
+            self.getPage(
+                "/admin/changeAccess?barcode=100091&admin=1&keyholder=1")
+            self.assertStatus('303 See Other')
+        sync.assert_called_once()
 
     def test_notloggedIn(self):
         with self.patch_session_none():
@@ -78,7 +89,7 @@ class AdminTest(CPtest.CPTest):
         self.getPage("/admin/emptyBuilding")
 
     def test_addUser(self):
-        with self.patch_session(), patch('webAdminStation.sync_roles'):
+        with self.patch_session():
             self.getPage("/admin/addUser?user=Fred&barcode=100093")
             self.assertStatus('200 OK')
 

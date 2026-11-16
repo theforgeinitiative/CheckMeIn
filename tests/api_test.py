@@ -160,7 +160,7 @@ class RolesApiTest(CPtest.CPTest):
 
     def set_role(self, payload, headers=AUTH):
         body = payload if isinstance(payload, str) else json.dumps(payload)
-        with patch('utils.sendEmail') as send_email, patch('webApi.sync_roles') as sync:
+        with patch('utils.sendEmail') as send_email, patch('webApi.try_sync_roles') as sync:
             self.getPage('/api/roles', headers + json_headers(body), 'POST', body)
         self.emails, self.syncs = send_email.call_count, sync.call_count
         return json.loads(self.body) if self.status.startswith('200') else None
@@ -236,8 +236,10 @@ class RolesApiTest(CPtest.CPTest):
 
     def test_still_saves_when_the_bigquery_sync_fails(self):
         with patch('utils.sendEmail'), \
-                patch('webApi.sync_roles', side_effect=RuntimeError('BigQuery down')):
+                patch.dict(cherrypy.config, {'bigquery.project': 'tfi-data'}), \
+                patch('webSync.sync_roles', side_effect=RuntimeError('BigQuery down')) as sync:
             body = json.dumps({'barcode': ROLE_BARCODE, 'role': 'steward', 'enabled': True})
             self.getPage('/api/roles', AUTH + json_headers(body), 'POST', body)
         self.assertStatus('200 OK')
         self.assertEqual(self.role_value(), 0x24 | 0x40)
+        sync.assert_called_once()
