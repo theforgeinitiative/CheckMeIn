@@ -5,7 +5,6 @@ import re
 from enum import IntEnum
 from collections import namedtuple
 
-from passlib.utils import _NULL
 from members import Members
 
 # TeamMember = namedtuple('TeamMember', ['name', 'barcode', 'type'])

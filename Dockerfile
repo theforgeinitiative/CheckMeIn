@@ -1,5 +1,4 @@
-# Pinned to 3.10: several pins in requirements.txt have no wheels for newer Pythons.
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 # Timestamps are stored as naive local time, so the container must run in the
 # building's timezone or new visits won't line up with existing data.
