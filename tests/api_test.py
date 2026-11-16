@@ -124,3 +124,120 @@ class VisitsApiTest(CPtest.CPTest):
     def test_is_read_only(self):
         self.visits('?barcode=100091', method='POST')
         self.assertStatus('405 Method Not Allowed')
+
+
+ROLE_BARCODE = '199990'  # an account only these tests use
+
+
+def json_headers(body):
+    return [('Content-Type', 'application/json'), ('Content-Length', str(len(body)))]
+
+
+class RolesApiTest(CPtest.CPTest):
+    def setUp(self):
+        super().setUp()
+        with _db() as db:
+            db.execute("INSERT INTO members (barcode, displayName, firstName, lastName, email)"
+                       " VALUES (?, 'Rolo T.', 'Rolo', 'Tester', 'rolo@example.com')",
+                       (ROLE_BARCODE,))
+            db.execute("INSERT INTO accounts (user, password, barcode, role) VALUES ('rolo', '', ?, ?)",
+                       (ROLE_BARCODE, 0x24))  # admin + coach
+
+    def tearDown(self):
+        with _db() as db:
+            db.execute("DELETE FROM accounts WHERE barcode = ?", (ROLE_BARCODE,))
+            db.execute("DELETE FROM members WHERE barcode = ?", (ROLE_BARCODE,))
+        super().tearDown()
+
+    def role_value(self):
+        with _db() as db:
+            return db.execute("SELECT role FROM accounts WHERE barcode = ?",
+                              (ROLE_BARCODE,)).fetchone()[0]
+
+    def list_roles(self, headers=AUTH):
+        self.getPage('/api/roles', headers)
+        return json.loads(self.body) if self.status.startswith('200') else None
+
+    def set_role(self, payload, headers=AUTH):
+        body = payload if isinstance(payload, str) else json.dumps(payload)
+        with patch('utils.sendEmail') as send_email, patch('webApi.sync_roles') as sync:
+            self.getPage('/api/roles', headers + json_headers(body), 'POST', body)
+        self.emails, self.syncs = send_email.call_count, sync.call_count
+        return json.loads(self.body) if self.status.startswith('200') else None
+
+    def test_requires_the_sync_token(self):
+        self.list_roles(headers=[])
+        self.assertStatus('401 Unauthorized')
+        self.set_role({'barcode': ROLE_BARCODE, 'role': 'keyholder', 'enabled': True},
+                      headers=[('Authorization', 'Bearer nope')])
+        self.assertStatus('401 Unauthorized')
+        self.assertEqual(self.role_value(), 0x24)
+
+    def test_lists_every_account_with_each_role(self):
+        roles = self.list_roles()['roles']
+        self.assertEqual(sorted(roles), ['certifier', 'coach', 'keyholder', 'steward'])
+        self.assertIn(ROLE_BARCODE, roles['coach'])
+        self.assertNotIn(ROLE_BARCODE, roles['keyholder'])
+        # joe (sample data) is only a steward.
+        self.assertIn('100032', roles['steward'])
+        self.assertNotIn('100032', roles['keyholder'])
+
+    def test_other_methods_are_refused(self):
+        self.getPage('/api/roles', AUTH, 'DELETE')
+        self.assertStatus('405 Method Not Allowed')
+
+    def test_sets_and_clears_a_role(self):
+        data = self.set_role({'barcode': ROLE_BARCODE, 'role': 'keyholder', 'enabled': True})
+        self.assertEqual(data, {'barcode': ROLE_BARCODE, 'roles': ['keyholder', 'coach'],
+                                'changed': True})
+        self.assertEqual((self.emails, self.syncs), (1, 1))
+        self.assertIn(ROLE_BARCODE, self.list_roles()['roles']['keyholder'])
+
+        data = self.set_role({'barcode': ROLE_BARCODE, 'role': 'coach', 'enabled': False})
+        self.assertEqual(data, {'barcode': ROLE_BARCODE, 'roles': ['keyholder'], 'changed': True})
+        self.assertNotIn(ROLE_BARCODE, self.list_roles()['roles']['coach'])
+
+    def test_admin_bit_survives_toggling_keyholder(self):
+        self.set_role({'barcode': ROLE_BARCODE, 'role': 'keyholder', 'enabled': True})
+        self.assertEqual(self.role_value(), 0x24 | 0x10)
+        self.set_role({'barcode': ROLE_BARCODE, 'role': 'keyholder', 'enabled': False})
+        self.assertEqual(self.role_value(), 0x24)
+
+    def test_no_op_saves_nothing_and_emails_no_one(self):
+        with patch('accounts.Accounts.changeRole') as change_role:
+            data = self.set_role({'barcode': ROLE_BARCODE, 'role': 'coach', 'enabled': True})
+            self.assertEqual(data['changed'], False)
+            self.set_role({'barcode': ROLE_BARCODE, 'role': 'steward', 'enabled': False})
+        change_role.assert_not_called()
+        self.assertEqual((self.emails, self.syncs), (0, 0))
+        self.assertEqual(self.role_value(), 0x24)
+
+    def test_unknown_barcode_is_404(self):
+        self.set_role({'barcode': '999999', 'role': 'keyholder', 'enabled': True})
+        self.assertStatus('404 Not Found')
+
+    def test_admin_cannot_be_changed(self):
+        for enabled in (True, False):
+            self.set_role({'barcode': ROLE_BARCODE, 'role': 'admin', 'enabled': enabled})
+            self.assertStatus('400 Bad Request')
+        self.assertEqual(self.role_value(), 0x24)
+
+    def test_rejects_bad_bodies(self):
+        for payload in ('not json', '[]',
+                        {'role': 'keyholder', 'enabled': True},
+                        {'barcode': ROLE_BARCODE, 'enabled': True},
+                        {'barcode': ROLE_BARCODE, 'role': 'Keyholder', 'enabled': True},
+                        {'barcode': ROLE_BARCODE, 'role': 'keyholder'},
+                        {'barcode': ROLE_BARCODE, 'role': 'keyholder', 'enabled': 1},
+                        {'barcode': 100091, 'role': 'keyholder', 'enabled': True}):
+            self.set_role(payload)
+            self.assertStatus('400 Bad Request')
+        self.assertEqual(self.role_value(), 0x24)
+
+    def test_still_saves_when_the_bigquery_sync_fails(self):
+        with patch('utils.sendEmail'), \
+                patch('webApi.sync_roles', side_effect=RuntimeError('BigQuery down')):
+            body = json.dumps({'barcode': ROLE_BARCODE, 'role': 'steward', 'enabled': True})
+            self.getPage('/api/roles', AUTH + json_headers(body), 'POST', body)
+        self.assertStatus('200 OK')
+        self.assertEqual(self.role_value(), 0x24 | 0x40)
