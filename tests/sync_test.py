@@ -51,3 +51,9 @@ class SyncMembersTest(CPtest.CPTest):
     def test_get_not_allowed(self):
         self.getPage('/sync/members', AUTH, 'GET')
         self.assertStatus('405 Method Not Allowed')
+
+
+class SyncIndexTest(CPtest.CPTest):
+    def test_bigquery_not_configured(self):
+        self.getPage('/sync/', AUTH, 'POST')
+        self.assertStatus('503 Service Unavailable')

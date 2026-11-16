@@ -42,3 +42,17 @@ def test_bq_client_uses_default_credentials_without_json(bq_config):
         webSync._get_bq_client()
 
     client.assert_called_once_with(project='tfi-data')
+
+
+def test_try_sync_roles_skips_when_unconfigured(bq_config):
+    cherrypy.config.update({'bigquery.project': ''})
+    with patch('webSync.sync_roles') as sync:
+        webSync.try_sync_roles(None)
+    sync.assert_not_called()
+
+
+def test_try_sync_roles_swallows_errors(bq_config):
+    cherrypy.config.update({'bigquery.project': 'tfi-data'})
+    with patch('webSync.sync_roles', side_effect=RuntimeError('BigQuery down')) as sync:
+        webSync.try_sync_roles('db')
+    sync.assert_called_once_with('db')

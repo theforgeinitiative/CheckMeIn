@@ -12,6 +12,10 @@ except Exception:
     _SERVER_TZ = zoneinfo.ZoneInfo("America/New_York")
 
 
+def bigquery_configured():
+    return bool(cherrypy.config.get("bigquery.project", ""))
+
+
 def _get_bq_client():
     project = cherrypy.config.get("bigquery.project", "")
     creds_json = cherrypy.config.get("bigquery.credentials_json", "")
@@ -66,6 +70,20 @@ def sync_roles(db_connect):
             bigquery.SchemaField("steward",   "BOOL"),
         ],
     )
+
+
+def try_sync_roles(db_connect):
+    """Push roles to BigQuery as a side effect of an admin change.
+
+    Skips when BigQuery isn't configured, and logs instead of raising on
+    failure, so a BigQuery problem never breaks the admin page that called it.
+    """
+    if not bigquery_configured():
+        return
+    try:
+        sync_roles(db_connect)
+    except Exception:
+        cherrypy.log("BigQuery roles sync failed", traceback=True)
 
 
 class WebSync(WebBase):
@@ -170,6 +188,8 @@ class WebSync(WebBase):
     def index(self):
         self._require_post()
         self._check_auth()
+        if not bigquery_configured():
+            raise cherrypy.HTTPError(503, "BigQuery is not configured")
         results = {
             "visits": self._upload(
                 "visits",

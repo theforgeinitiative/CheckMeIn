@@ -50,7 +50,8 @@ The repo includes a `Dockerfile`, `railway.toml` and `container.conf` (the Cherr
 2. Set these variables on the service:
    * `SYNC_TOKEN` - bearer token for the `/sync` and `/api` endpoints
    * `RESEND_API_KEY` - sends email through Resend (without it, email goes to a local SMTP server)
-   * `BIGQUERY_PROJECT` and `BIGQUERY_CREDENTIALS_JSON` (the service account JSON itself) - only needed for the BigQuery sync
+   * `BIGQUERY_PROJECT` and `BIGQUERY_CREDENTIALS_JSON` (the service account JSON itself) - only needed for the BigQuery sync.
+     Without `BIGQUERY_PROJECT`, `/sync` returns 503 and role changes made in the admin pages are not pushed to BigQuery
 
    `PORT` is set by Railway. `TZ` defaults to `America/New_York` in the image and must match the
    timezone of any existing data, since visit times are stored as local time.
